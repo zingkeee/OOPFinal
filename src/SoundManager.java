@@ -22,7 +22,7 @@ import java.util.Random;
 public final class SoundManager {
     public enum Sfx {
         FLAP, SHOOT, ENEMY_SHOT, POWERUP, SCORE, EXPLOSION, BIG_EXPLOSION,
-        HIT, CRASH, ZAP, THUNDER, WARNING, SIREN, SHIELD_UP, SHIELD_BREAK
+        HIT, CRASH, ZAP, THUNDER, WARNING, SIREN, SHIELD_UP, SHIELD_BREAK, BOMB_THROW
     }
 
     /** Which music loop should be playing. */
@@ -105,6 +105,10 @@ public final class SoundManager {
         SOUNDS.put(Sfx.SHIELD_BREAK, toPcm(mix(
                 tone(2400, 500, 200, Wave.SQUARE, 0.12),
                 rumble(220, 0.6, 0.2, 1.2))));
+
+        SOUNDS.put(Sfx.BOMB_THROW, toPcm(mix(
+                tone(280, 110, 150, Wave.SQUARE, 0.12),
+                rumble(120, 0.4, 0.6, 1.2))));
 
         // Calm, moody storm theme: A minor, 8 bars, ~20 seconds before it loops
         STORM_LOOP = buildTrack(96,

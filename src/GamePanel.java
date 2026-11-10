@@ -390,7 +390,7 @@ public class GamePanel extends JPanel implements ActionListener {
         bossLevel++;
         nextBossScore = (score / BOSS_EVERY + 1) * BOSS_EVERY;
         boss = null;
-        hazards.removeIf(h -> h instanceof BossShot);
+        hazards.removeIf(h -> h instanceof BossShot || h instanceof Bomb);
 
         // Normal play resumes: buildings start coming again
         distance = SPAWN_DISTANCE * 0.6;
@@ -569,8 +569,10 @@ public class GamePanel extends JPanel implements ActionListener {
 
             if (h.isDestroyed()) {
                 score += h.getPoints();
-                effects.add(new Explosion(h.getX() + h.getWidth() / 2.0,
-                        h.getY() + h.getHeight() / 2.0, h.getPoints() > 0 ? 20 : 12, 3.5));
+                if (h.leavesDebris()) {
+                    effects.add(new Explosion(h.getX() + h.getWidth() / 2.0,
+                            h.getY() + h.getHeight() / 2.0, h.getPoints() > 0 ? 20 : 12, 3.5));
+                }
                 if (h.getPoints() > 0) {
                     SoundManager.play(SoundManager.Sfx.EXPLOSION);
                 }
@@ -687,6 +689,12 @@ public class GamePanel extends JPanel implements ActionListener {
         if (slowTimer > 0 && state != State.TITLE) {
             int alpha = slowTimer < 60 ? (((int) slowTimer / 6) % 2 == 0 ? 40 : 12) : 32;
             g2.setColor(new Color(140, 90, 255, alpha));
+            g2.fillRect(0, 0, WIDTH, HEIGHT);
+        }
+
+        // A dark red tint while the Storm King is around
+        if (boss != null && state != State.TITLE) {
+            g2.setColor(new Color(160, 0, 20, 22));
             g2.fillRect(0, 0, WIDTH, HEIGHT);
         }
 

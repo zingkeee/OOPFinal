@@ -21,6 +21,11 @@ public abstract class Hazard extends GameObject {
         return health <= 0;
     }
 
+    /** Whether destroying this hazard throws off a few sparks. Bombs have their own blast instead. */
+    public boolean leavesDebris() {
+        return true;
+    }
+
     /** Score awarded for destroying this hazard. */
     public int getPoints() {
         return 1;

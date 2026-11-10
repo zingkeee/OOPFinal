@@ -11,8 +11,9 @@ import java.util.Random;
  *
  * Some buildings have a civilian waving for help from a window, and a little rescue scene
  * plays out (decoration only, it never affects gameplay):
- *  - On buildings standing on the ground, a fire truck ladder extends up to the window,
- *    a fireman climbs it, helps the civilian out, and walks them down to safety.
+ *  - On buildings standing on the ground, a fire truck drives up and parks outside, its
+ *    ladder extends up to the window, and a fireman climbs it, helps the civilian out,
+ *    and brings them down to safety.
  *  - On hanging buildings there is no ground to put a ladder on, so a fireman appears in
  *    the next window inside the building to help.
  * A fire flickers in another window nearby.
@@ -29,6 +30,7 @@ public class Building extends GameObject {
     private static final Font BUBBLE_FONT = new Font(Font.MONOSPACED, Font.BOLD, 11);
 
     // Timeline of the rescue scene, in frames (it starts after a short random delay)
+    private static final int TRUCK_FRAMES = 22;   // the fire truck drives up and parks
     private static final int EXTEND = 20;     // the ladder extends up the building
     private static final int CLIMB = 40;      // the fireman climbs up to the window
     private static final int HAND = 18;       // he reaches the civilian
@@ -54,6 +56,7 @@ public class Building extends GameObject {
     private final int fireCol;       // window with a fire in it (-1 = none)
     private final int helperCol;     // window the fireman appears in, on hanging buildings (-1 = none)
     private final int delay;         // frames before the rescue starts
+    private final FireTruck truck;   // parked outside while the rescue happens (ground buildings only)
     private double age = 0;          // frames since this building was created
 
     public Building(double x, double y, int width, int height, Color color,
@@ -87,6 +90,7 @@ public class Building extends GameObject {
         this.shirt = SHIRTS[rnd.nextInt(SHIRTS.length)];
         this.mirror = rnd.nextBoolean();
         this.delay = rnd.nextInt(20);
+        this.truck = (col >= 0 && !hanging) ? new FireTruck(0) : null;
 
         // With three window columns there is room for a fire and a helper next to the civilian
         int fire = -1;
@@ -147,69 +151,81 @@ public class Building extends GameObject {
 
     private void drawRescueScene(Graphics2D g) {
         double t = age - delay;
+        // On ground buildings the fireman can only start once the truck has parked
+        double rt = hanging ? t : t - TRUCK_FRAMES;
         int wx = windowX(civilianCol);
         int wy = windowY(civilianRow);
 
         if (!hanging && t >= 0) {
-            drawLadderScene(g, t, wx);
+            drawLadderScene(g, t, rt, wx);
         }
-        if (hanging && helperCol >= 0 && t >= T_ARRIVE - 15 && t < T_LEAVE + 20) {
+        if (hanging && helperCol >= 0 && rt >= T_ARRIVE - 15 && rt < T_LEAVE + 20) {
             drawHelperFireman(g);
         }
 
         // The civilian waves from the window until the fireman gets them out
-        if (t < T_LEAVE) {
+        if (rt < T_LEAVE) {
             drawCivilianInWindow(g, wx, wy);
-            boolean thanks = t >= T_ARRIVE;
+            boolean thanks = rt >= T_ARRIVE;
             boolean above = wy >= 26;
             drawBubble(g, wx + 5, above ? wy : wy + 12, above,
                     thanks ? "THANKS!" : "HELP!", thanks ? SAFE_GREEN : HELP_RED);
         }
     }
 
-    /** The fire truck ladder, the fireman climbing it, and the two of them coming back down. */
-    private void drawLadderScene(Graphics2D g, double t, int lx) {
+    /** The fire truck, its ladder, the fireman climbing it, and the two of them coming back down. */
+    private void drawLadderScene(Graphics2D g, double t, double rt, int lx) {
         int bottom = (int) y + height;
         int topY = windowY(civilianRow) + 2;     // top of a person who is level with the window
-        int groundY = bottom - 14;               // top of a person standing on the ground
+        int roofY = bottom - 24;                 // top of a person standing on the truck's roof
 
-        drawLadder(g, lx, Math.min(1.0, t / EXTEND), bottom);
+        drawTruck(g, t, bottom);
+        drawLadder(g, lx, Math.max(0.0, Math.min(1.0, rt / EXTEND)), bottom - 12);
 
         int step = (int) (age / 6) % 2;          // alternates the arms and legs while climbing
-        if (t < EXTEND) {
-            drawPerson(g, lx + 1, groundY, true, null, 0);              // waiting by the truck
-        } else if (t < T_ARRIVE) {
-            double p = (t - EXTEND) / CLIMB;
-            drawPerson(g, lx + 1, (int) (groundY + (topY - groundY) * p), true, null, step);
-        } else if (t < T_LEAVE) {
-            double reach = (t - T_ARRIVE) / HAND;                       // steps up to help them out
+        if (rt < EXTEND) {
+            // Ready on the truck's roof (and riding along while the truck is still driving in)
+            int ride = -(int) ((1 - Math.min(1.0, t / TRUCK_FRAMES)) * 110);
+            drawPerson(g, lx + 1 + ride, roofY, true, null, 0);
+        } else if (rt < T_ARRIVE) {
+            double p = (rt - EXTEND) / CLIMB;
+            drawPerson(g, lx + 1, (int) (roofY + (topY - roofY) * p), true, null, step);
+        } else if (rt < T_LEAVE) {
+            double reach = (rt - T_ARRIVE) / HAND;                      // steps up to help them out
             drawPerson(g, lx + 1, (int) (topY - 12 * reach), true, null, 0);
-        } else if (t < T_GROUND) {
-            double q = (t - T_LEAVE) / DESCEND;
-            int personY = (int) (topY + (groundY - topY) * q);
+        } else if (rt < T_GROUND) {
+            double q = (rt - T_LEAVE) / DESCEND;
+            int personY = (int) (topY + (roofY - topY) * q);
             drawPerson(g, lx + 1, personY - 12, true, null, step);      // fireman, just above
             drawPerson(g, lx + 1, personY, false, shirt, step);         // the rescued civilian
-        } else if (t < T_END) {
-            drawPerson(g, lx - 6, groundY, true, null, 0);
-            drawPerson(g, lx + 12, groundY, false, shirt, 0);
-            drawBubble(g, lx + 16, groundY, true, "SAFE!", SAFE_GREEN);
+        } else if (rt < T_END) {
+            drawPerson(g, lx - 6, roofY, true, null, 0);
+            drawPerson(g, lx + 12, roofY, false, shirt, 0);
+            drawBubble(g, lx + 16, roofY, true, "SAFE!", SAFE_GREEN);
         }
     }
 
-    private void drawLadder(Graphics2D g, int lx, double extend, int bottom) {
-        int top = windowY(civilianRow) - 10;
-        int visibleTop = (int) (bottom - (bottom - top) * extend);
+    /** The truck drives in from the left and parks in front of the building, lights flashing. */
+    private void drawTruck(Graphics2D g, double t, int bottom) {
+        double slide = (1 - Math.min(1.0, t / TRUCK_FRAMES)) * 110;
+        truck.x = x + 3 - slide;
+        truck.y = bottom - 14;
+        truck.draw(g);
+    }
 
-        g.setColor(new Color(60, 64, 76));                    // the truck's base
-        g.fillRect(lx - 4, bottom - 6, 18, 6);
-        g.setColor(new Color(255, 200, 40));
-        g.fillRect(lx - 4, bottom - 6, 18, 2);
+    /** The extended ladder, which stands on the truck's roof. */
+    private void drawLadder(Graphics2D g, int lx, double extend, int baseY) {
+        if (extend <= 0) {
+            return;
+        }
+        int top = windowY(civilianRow) - 10;
+        int visibleTop = (int) (baseY - (baseY - top) * extend);
 
         g.setColor(new Color(205, 210, 222));                 // rails
-        g.fillRect(lx, visibleTop, 2, bottom - 6 - visibleTop);
-        g.fillRect(lx + 8, visibleTop, 2, bottom - 6 - visibleTop);
+        g.fillRect(lx, visibleTop, 2, baseY - visibleTop);
+        g.fillRect(lx + 8, visibleTop, 2, baseY - visibleTop);
         g.setColor(new Color(235, 238, 248));                 // rungs
-        for (int ry = bottom - 10; ry > visibleTop; ry -= 6) {
+        for (int ry = baseY - 4; ry > visibleTop; ry -= 6) {
             g.fillRect(lx + 2, ry, 6, 2);
         }
     }
