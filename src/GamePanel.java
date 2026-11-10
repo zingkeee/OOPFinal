@@ -816,7 +816,7 @@ public class GamePanel extends JPanel implements ActionListener {
         Font body = new Font(Font.MONOSPACED, Font.BOLD, 14);
         Font label = new Font(Font.MONOSPACED, Font.BOLD, 16);
 
-        drawCentered(g, "STORM PILOT", 130, new Font(Font.MONOSPACED, Font.BOLD, 48), Color.WHITE);
+        drawCentered(g, "STORMRUNNER", 130, new Font(Font.MONOSPACED, Font.BOLD, 48), Color.WHITE);
         drawCentered(g, "Fly through the city. Survive the storm.", 165, body, new Color(200, 200, 230));
 
         drawCentered(g, "POWERUPS", 225, label, new Color(255, 230, 120));

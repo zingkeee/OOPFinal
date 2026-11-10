@@ -9,11 +9,15 @@ import java.util.Properties;
  * user's home folder. If the file can't be read or written, the game just carries on.
  */
 public final class SaveData {
-    private static final File FILE = new File(System.getProperty("user.home"), ".storm_pilot.properties");
+    private static final File FILE = new File(System.getProperty("user.home"), ".stormrunner.properties");
+    // The game used to be called "Storm Pilot": if that save file exists, we still read it,
+    // so nobody loses their high score when the file is renamed.
+    private static final File OLD_FILE = new File(System.getProperty("user.home"), ".storm_pilot.properties");
     private static final Properties PROPS = new Properties();
 
     static {
-        try (FileInputStream in = new FileInputStream(FILE)) {
+        File source = FILE.exists() ? FILE : OLD_FILE;
+        try (FileInputStream in = new FileInputStream(source)) {
             PROPS.load(in);
         } catch (IOException e) {
             // First run: no save file yet
@@ -45,7 +49,7 @@ public final class SaveData {
     public static void set(String key, String value) {
         PROPS.setProperty(key, value);
         try (FileOutputStream out = new FileOutputStream(FILE)) {
-            PROPS.store(out, "Storm Pilot save data");
+            PROPS.store(out, "Stormrunner save data");
         } catch (IOException e) {
             System.err.println("[SaveData] Could not save: " + e);
         }
